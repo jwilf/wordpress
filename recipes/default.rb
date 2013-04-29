@@ -18,7 +18,6 @@
 #
 
 include_recipe "apache2"
-include_recipe "mysql::server"
 include_recipe "php"
 include_recipe "php::module_mysql"
 include_recipe "apache2::mod_php5"
@@ -37,7 +36,6 @@ else
   server_fqdn = node['fqdn']
 end
 
-node.set_unless['wordpress']['db']['password'] = secure_password
 node.set_unless['wordpress']['keys']['auth'] = secure_password
 node.set_unless['wordpress']['keys']['secure_auth'] = secure_password
 node.set_unless['wordpress']['keys']['logged_in'] = secure_password
@@ -78,7 +76,7 @@ execute "untar-wordpress" do
 end
 
 execute "mysql-install-wp-privileges" do
-  command "/usr/bin/mysql -u root -p\"#{node['mysql']['server_root_password']}\" < #{node['mysql']['conf_dir']}/wp-grants.sql"
+  command "/usr/bin/mysql -h #{node['wordpress']['db']['host']} -u root -p\"#{node['mysql']['server_root_password']}\" < #{node['mysql']['conf_dir']}/wp-grants.sql"
   action :nothing
 end
 
@@ -96,13 +94,13 @@ template "#{node['mysql']['conf_dir']}/wp-grants.sql" do
 end
 
 execute "create #{node['wordpress']['db']['database']} database" do
-  command "/usr/bin/mysqladmin -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
+  command "/usr/bin/mysqladmin -h #{node['wordpress']['db']['host']} -u root -p\"#{node['mysql']['server_root_password']}\" create #{node['wordpress']['db']['database']}"
   not_if do
     # Make sure gem is detected if it was just installed earlier in this recipe
     require 'rubygems'
     Gem.clear_paths
     require 'mysql'
-    m = Mysql.new("localhost", "root", node['mysql']['server_root_password'])
+    m = Mysql.new(node['wordpress']['db']['host'], "root", node['mysql']['server_root_password'])
     m.list_dbs.include?(node['wordpress']['db']['database'])
   end
   notifies :create, "ruby_block[save node data]", :immediately unless Chef::Config[:solo]
@@ -131,6 +129,7 @@ template "#{node['wordpress']['dir']}/wp-config.php" do
     :database        => node['wordpress']['db']['database'],
     :user            => node['wordpress']['db']['user'],
     :password        => node['wordpress']['db']['password'],
+    :host            => node['wordpress']['db']['host'],
     :auth_key        => node['wordpress']['keys']['auth'],
     :secure_auth_key => node['wordpress']['keys']['secure_auth'],
     :logged_in_key   => node['wordpress']['keys']['logged_in'],
