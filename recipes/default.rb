@@ -47,7 +47,7 @@ if node['wordpress']['version'] == 'latest'
   require 'digest/sha1'
   require 'open-uri'
   local_file = "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz"
-  latest_sha1 = open('http://wordpress.org/latest.tar.gz.sha1') {|f| f.read }
+  latest_sha1 = open('https://wordpress.org/latest.tar.gz.sha1') {|f| f.read }
   unless File.exists?(local_file) && ( Digest::SHA1.hexdigest(File.read(local_file)) == latest_sha1 )
     remote_file "#{Chef::Config[:file_cache_path]}/wordpress-latest.tar.gz" do
       source "http://wordpress.org/latest.tar.gz"
